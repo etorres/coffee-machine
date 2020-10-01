@@ -15,14 +15,19 @@ val catsEffectsVersion = "2.2.0"
 val newtypeVersion = "0.4.4"
 val refinedVersion = "0.9.15"
 val scalaTestVersion = "3.2.2"
+val weaverVersion = "0.4.3"
 
 libraryDependencies ++= Seq(
+  compilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
+  compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1" cross CrossVersion.binary),
   "org.typelevel" %% "cats-core" % catsCoreVersion,
   "org.typelevel" %% "cats-effect" % catsEffectsVersion,
   "io.estatico" %% "newtype" % newtypeVersion,
   "eu.timepit" %% "refined-cats" % refinedVersion,
   "eu.timepit" %% "refined-scalacheck" % refinedVersion % Test,
-  "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+  "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+  "com.disneystreaming" %% "weaver-framework" % weaverVersion % Test,
+  "com.disneystreaming" %% "weaver-scalacheck" % weaverVersion % Test
 )
 
 scalacOptions ++= Seq(
@@ -30,8 +35,13 @@ scalacOptions ++= Seq(
   "utf8",
   "-Xfatal-warnings",
   "-Xlint",
+  "-Xlint:-byname-implicit",
+  "-Ymacro-annotations",
   "-deprecation",
-  "-unchecked"
+  "-unchecked",
+  "-language:higherKinds",
+  "-language:implicitConversions",
+  "-feature"
 )
 
 javacOptions ++= Seq(
@@ -46,15 +56,18 @@ javacOptions ++= Seq(
 
 scalafmtOnCompile := true
 
-val warts: Seq[Wart] = Warts.unsafe
+val warts: Seq[Wart] = Warts.allBut(
+  Wart.Any,
+  Wart.Nothing,
+  Wart.Equals,
+  Wart.DefaultArguments,
+  Wart.Overloading,
+  Wart.ToString,
+  Wart.ImplicitParameter,
+  Wart.ImplicitConversion // @newtype
+)
 
 wartremoverErrors in (Compile, compile) ++= warts
 wartremoverErrors in (Test, compile) ++= warts
 
-lazy val root = (project in file("."))
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "es.eriktorr.coffee-machine",
-    buildInfoOptions := Seq(BuildInfoOption.BuildTime)
-  )
+testFrameworks += new TestFramework("weaver.framework.TestFramework")
