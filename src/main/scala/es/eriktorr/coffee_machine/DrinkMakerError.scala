@@ -4,4 +4,4 @@ import scala.util.control.NoStackTrace
 
 sealed trait DrinkMakerError extends NoStackTrace
 
-case object InvalidCommand extends DrinkMakerError
+final case class InvalidCommand(errorMessage: String) extends DrinkMakerError

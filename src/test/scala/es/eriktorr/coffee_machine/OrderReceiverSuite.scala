@@ -32,6 +32,6 @@ object OrderReceiverSuite extends IOSuite {
   ) { orderReceiver =>
     for {
       order <- orderReceiver.orderFrom(Command("M:message-content"))
-    } yield expect(order == Message("message-content"))
+    } yield expect(order == CoffeeMachineMessage("message-content"))
   }
 }
