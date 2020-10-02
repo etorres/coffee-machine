@@ -3,13 +3,15 @@ package es.eriktorr.coffee_machine
 import cats._
 import cats.implicits._
 import eu.timepit.refined.api.Refined.unsafeApply
+import squants.market.Money
+import squants.market.MoneyConversions._
 
-trait OrderReceiver[F[_]] {
-  def orderFrom(command: Command): F[DrinkMakerOrder]
+trait DrinkMaker[F[_]] {
+  def make(payment: Money, command: Command): F[DrinkMakerOrder]
 }
 
-object OrderReceiver {
-  implicit def apply[F[_]](implicit ev: OrderReceiver[F]): OrderReceiver[F] = ev
+object DrinkMaker {
+  implicit def apply[F[_]](implicit ev: DrinkMaker[F]): DrinkMaker[F] = ev
 
   private[this] def maybeTokens[F[_]: Monad](
     command: Command
@@ -49,13 +51,21 @@ object OrderReceiver {
         Monad[F].pure(DrinkOrder(d, Sugar(unsafeApply(sugar)), Stick(stick)))
       )
 
-  def impl[F[_]: MonadError[*[_], Throwable]]: OrderReceiver[F] = (command: Command) => {
-    for {
-      tokens <- maybeTokens[F](command)
-      order <- tokens.fold(
-        InvalidCommand(s"Invalid command received ${command.toText.value}")
-          .raiseError[F, DrinkMakerOrder]
-      )(orderFrom[F])
-    } yield order
-  }
+  def impl[F[_]: MonadError[*[_], Throwable]](appContext: AppContext): DrinkMaker[F] =
+    (payment: Money, command: Command) => {
+      for {
+        tokens <- maybeTokens[F](command)
+        order <- tokens.fold(
+          InvalidCommand(s"Invalid command received ${command.toText.value}")
+            .raiseError[F, DrinkMakerOrder]
+        )(orderFrom[F])
+        paidOrder = order match {
+          case drinkOrder: DrinkOrder =>
+            val priceDiff = appContext.priceOf(drinkOrder.drink) - payment
+            if (priceDiff <= 0.EUR) drinkOrder
+            else CoffeeMachineMessage(s"Not enough money, missing ${priceDiff.toString}")
+          case message: CoffeeMachineMessage => message
+        }
+      } yield paidOrder
+    }
 }

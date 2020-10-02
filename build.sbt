@@ -26,6 +26,7 @@ libraryDependencies ++= Seq(
   "eu.timepit" %% "refined-cats" % refinedVersion,
   "eu.timepit" %% "refined-scalacheck" % refinedVersion % Test,
   "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+  "org.typelevel" %% "squants" % "1.7.0",
   "com.disneystreaming" %% "weaver-framework" % weaverVersion % Test,
   "com.disneystreaming" %% "weaver-scalacheck" % weaverVersion % Test
 )
