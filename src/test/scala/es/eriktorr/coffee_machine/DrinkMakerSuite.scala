@@ -1,7 +1,8 @@
 package es.eriktorr.coffee_machine
 
 import cats.effect._
-import es.eriktorr.coffee_machine.shared.infrastructure.FakeAppContext
+import cats.effect.concurrent.Ref
+import es.eriktorr.coffee_machine.shared.infrastructure.{FakeAppContext, FakeStatementsPrinter}
 import eu.timepit.refined.auto._
 import weaver._
 import squants.market.MoneyConversions._
@@ -9,7 +10,18 @@ import squants.market.MoneyConversions._
 object DrinkMakerSuite extends IOSuite with FakeAppContext {
   override type Res = DrinkMaker[IO]
 
-  override def sharedResource: Resource[IO, Res] = DrinkMaker.impl[IO](appContext).toResource
+  override def sharedResource: Resource[IO, Res] =
+    DrinkMaker
+      .impl[IO](
+        appContext,
+        Sales.impl[IO](
+          Ref.unsafe[IO, List[Sale]](List.empty),
+          new FakeStatementsPrinter(
+            Ref.unsafe[IO, List[Statement]](List.empty)
+          )
+        )
+      )
+      .toResource
 
   test("Drink maker makes 1 tea with 1 sugar and a stick") { drinkMaker =>
     for {

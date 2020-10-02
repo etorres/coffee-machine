@@ -64,7 +64,10 @@ object DrinkMaker {
         Monad[F].pure(DrinkOrder(d, Sugar(unsafeApply(sugar)), Stick(stick), ExtraHot(extraHot)))
       )
 
-  def impl[F[_]: MonadError[*[_], Throwable]](appContext: AppContext): DrinkMaker[F] =
+  def impl[F[_]: MonadError[*[_], Throwable]](
+    appContext: AppContext,
+    sales: Sales[F]
+  ): DrinkMaker[F] =
     (payment: Money, command: Command) => {
       for {
         tokens <- maybeTokens[F](command)
@@ -79,6 +82,12 @@ object DrinkMaker {
             else CoffeeMachineMessage(s"Not enough money, missing ${priceDiff.toString}")
           case message: CoffeeMachineMessage => message
         }
+        _ <- (paidOrder match {
+          case drinkOrder: DrinkOrder => drinkOrder.some
+          case _ => none[DrinkOrder]
+        }).fold(Monad[F].unit)(drinkOrder =>
+          sales.save(Sale(drinkOrder.drink, appContext.priceOf(drinkOrder.drink)))
+        )
       } yield paidOrder
     }
 }
