@@ -15,6 +15,8 @@ package object coffee_machine extends ResourceSyntax {
 
   @newtype case class ExtraHot(toBoolean: Boolean)
 
+  @newtype case class Statement(toText: String)
+
   @newtype case class Stick(toBoolean: Boolean)
 
   @newtype case class Sugar(toInt: ZeroToTwo)
