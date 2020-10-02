@@ -13,24 +13,36 @@ trait DrinkMaker[F[_]] {
 object DrinkMaker {
   implicit def apply[F[_]](implicit ev: DrinkMaker[F]): DrinkMaker[F] = ev
 
+  type Tokens = (Char, Boolean, Int, Boolean, Option[String])
+
+  private[this] def drinkTokensFrom(token: String) = token.toCharArray.toList match {
+    case x :: 'h' :: Nil => (x, true).some
+    case x :: Nil => (x, false).some
+    case _ => None
+  }
+
   private[this] def maybeTokens[F[_]: Monad](
     command: Command
   ) = Monad[F].pure(
     command.toText.value.split(":").toList match {
       case x :: y :: _ :: Nil =>
-        val sugar = y.toInt
-        (x, sugar, if (sugar > 0) true else false, None).some
-      case x :: Nil => (x, 0, false, None).some
-      case "M" :: y :: Nil => ("M", 0, false, y.some).some
-      case _ => None
+        drinkTokensFrom(x).fold(none[Tokens]) {
+          case (drink, extraHot) =>
+            val sugar = y.toInt
+            (drink, extraHot, sugar, if (sugar > 0) true else false, none[String]).some
+        }
+      case x :: Nil =>
+        drinkTokensFrom(x).fold(none[Tokens]) {
+          case (drink, extraHot) => (drink, extraHot, 0, false, none[String]).some
+        }
+      case "M" :: y :: Nil => ('M', false, 0, false, y.some).some
+      case _ => none[Tokens]
     }
   )
 
-  private[this] def orderFrom[F[_]: MonadError[*[_], Throwable]](
-    tokens: (String, Int, Boolean, Option[String])
-  ) = tokens match {
-    case ("M", _, _, messageContent) => messageOrder[F](messageContent)
-    case (order, sugar, stick, _) => drinkOrder[F](order, sugar, stick)
+  private[this] def orderFrom[F[_]: MonadError[*[_], Throwable]](tokens: Tokens) = tokens match {
+    case ('M', _, _, _, messageContent) => messageOrder[F](messageContent)
+    case (drink, extraHot, sugar, stick, _) => drinkOrder[F](drink, extraHot, sugar, stick)
   }
 
   private[this] def messageOrder[F[_]: MonadError[*[_], Throwable]](
@@ -41,14 +53,15 @@ object DrinkMaker {
     )
 
   private[this] def drinkOrder[F[_]: MonadError[*[_], Throwable]](
-    drink: String,
+    drink: Char,
+    extraHot: Boolean,
     sugar: Int,
     stick: Boolean
   ) =
     Drink
-      .fromString(drink)
-      .fold(InvalidCommand(s"Unknown drink $drink").raiseError[F, DrinkMakerOrder])(d =>
-        Monad[F].pure(DrinkOrder(d, Sugar(unsafeApply(sugar)), Stick(stick)))
+      .fromCode(drink)
+      .fold(InvalidCommand(s"Unknown drink ${drink.toString}").raiseError[F, DrinkMakerOrder])(d =>
+        Monad[F].pure(DrinkOrder(d, Sugar(unsafeApply(sugar)), Stick(stick), ExtraHot(extraHot)))
       )
 
   def impl[F[_]: MonadError[*[_], Throwable]](appContext: AppContext): DrinkMaker[F] =

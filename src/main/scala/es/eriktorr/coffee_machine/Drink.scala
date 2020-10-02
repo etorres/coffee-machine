@@ -10,11 +10,11 @@ case object OrangeJuice extends Drink
 case object Tea extends Drink
 
 object Drink {
-  def fromString(code: String): Option[Drink] = code match {
-    case "H" => Chocolate.some
-    case "C" => Coffee.some
-    case "O" => OrangeJuice.some
-    case "T" => Tea.some
+  def fromCode(code: Char): Option[Drink] = code match {
+    case 'H' => Chocolate.some
+    case 'C' => Coffee.some
+    case 'O' => OrangeJuice.some
+    case 'T' => Tea.some
     case _ => None
   }
 }
