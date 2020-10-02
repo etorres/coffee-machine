@@ -11,7 +11,9 @@ final case class AppContext(drinkPrices: DrinkPrices, priceForEveryThingElse: Mo
 object AppContext {
   def apply(): AppContext =
     new AppContext(
-      DrinkPrices(Map(Chocolate -> 0.5.EUR, Coffee -> 0.6.EUR, Tea -> 0.4.EUR)),
+      DrinkPrices(
+        Map(Chocolate -> 0.5.EUR, Coffee -> 0.6.EUR, OrangeJuice -> 0.6.EUR, Tea -> 0.4.EUR)
+      ),
       1.0.EUR
     )
 

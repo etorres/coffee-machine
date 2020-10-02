@@ -29,6 +29,12 @@ object DrinkMakerSuite extends IOSuite with FakeAppContext {
     } yield expect(order == DrinkOrder(Coffee, Sugar(2), Stick(true)))
   }
 
+  test("Drink maker makes an orange juice") { drinkMaker =>
+    for {
+      order <- drinkMaker.make(appContext.priceOf(OrangeJuice), Command("O::"))
+    } yield expect(order == DrinkOrder(OrangeJuice, Sugar(0), Stick(false)))
+  }
+
   test(
     "Drink maker forwards any message received onto the coffee machine interface for the customer to see"
   ) { drinkMaker =>
