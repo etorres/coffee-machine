@@ -21,9 +21,7 @@ object DrinkMaker {
     case _ => None
   }
 
-  private[this] def maybeTokens[F[_]: Monad](
-    command: Command
-  ) = Monad[F].pure(
+  private[this] def maybeTokens[F[_]: Monad](command: Command) = Monad[F].pure(
     command.toText.value.split(":").toList match {
       case x :: y :: _ :: Nil =>
         drinkTokensFrom(x).fold(none[Tokens]) {
@@ -45,9 +43,7 @@ object DrinkMaker {
     case (drink, extraHot, sugar, stick, _) => drinkOrder[F](drink, extraHot, sugar, stick)
   }
 
-  private[this] def messageOrder[F[_]: MonadError[*[_], Throwable]](
-    content: Option[String]
-  ) =
+  private[this] def messageOrder[F[_]: MonadError[*[_], Throwable]](content: Option[String]) =
     content.fold(InvalidCommand("Message content expected").raiseError[F, DrinkMakerOrder])(c =>
       Monad[F].pure(CoffeeMachineMessage(c))
     )
@@ -64,18 +60,33 @@ object DrinkMaker {
         Monad[F].pure(DrinkOrder(d, Sugar(unsafeApply(sugar)), Stick(stick), ExtraHot(extraHot)))
       )
 
-  def impl[F[_]: MonadError[*[_], Throwable]](
+  def impl[F[+_]: MonadError[*[_], Throwable]](
     appContext: AppContext,
+    beverageQuantityChecker: BeverageQuantityChecker[F],
+    emailNotifier: EmailNotifier[F],
     sales: Sales[F]
   ): DrinkMaker[F] =
     (payment: Money, command: Command) => {
+      val F = Monad[F]
       for {
         tokens <- maybeTokens[F](command)
         order <- tokens.fold(
           InvalidCommand(s"Invalid command received ${command.toText.value}")
             .raiseError[F, DrinkMakerOrder]
         )(orderFrom[F])
-        (paidOrder, sale) = order match {
+        validatedOrder <- order match {
+          case drinkOrder: DrinkOrder =>
+            F.ifA(beverageQuantityChecker.isEmpty(drinkOrder.drink))(
+              ifTrue = emailNotifier.notifyMissingDrink(drinkOrder.drink) *> F.pure(
+                CoffeeMachineMessage(
+                  s"I ran out of ${drinkOrder.drink.toString}. My human was notified already"
+                )
+              ),
+              ifFalse = F.pure(order)
+            )
+          case _ => F.pure(order)
+        }
+        (paidOrder, sale) = validatedOrder match {
           case drinkOrder: DrinkOrder =>
             val price = appContext.priceOf(drinkOrder.drink)
             val priceDiff = price - payment
@@ -84,7 +95,7 @@ object DrinkMaker {
               (CoffeeMachineMessage(s"Not enough money, missing ${priceDiff.toString}"), none[Sale])
           case message: CoffeeMachineMessage => (message, none[Sale])
         }
-        _ <- sale.fold(Monad[F].unit)(sales.save)
+        _ <- sale.fold(F.unit)(sales.save)
       } yield paidOrder
     }
 }

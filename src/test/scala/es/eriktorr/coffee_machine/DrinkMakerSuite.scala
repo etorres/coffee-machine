@@ -2,7 +2,12 @@ package es.eriktorr.coffee_machine
 
 import cats.effect._
 import cats.effect.concurrent.Ref
-import es.eriktorr.coffee_machine.shared.infrastructure.{FakeAppContext, FakeStatementsPrinter}
+import es.eriktorr.coffee_machine.shared.infrastructure.{
+  FakeAppContext,
+  FakeBeverageQuantityChecker,
+  FakeEmailNotifier,
+  FakeStatementsPrinter
+}
 import eu.timepit.refined.auto._
 import weaver._
 import squants.market.MoneyConversions._
@@ -14,6 +19,8 @@ object DrinkMakerSuite extends IOSuite with FakeAppContext {
     DrinkMaker
       .impl[IO](
         appContext,
+        new FakeBeverageQuantityChecker(List.empty),
+        new FakeEmailNotifier(Ref.unsafe[IO, List[Drink]](List.empty)),
         Sales.impl[IO](
           Ref.unsafe[IO, List[Sale]](List.empty),
           new FakeStatementsPrinter(
