@@ -75,19 +75,16 @@ object DrinkMaker {
           InvalidCommand(s"Invalid command received ${command.toText.value}")
             .raiseError[F, DrinkMakerOrder]
         )(orderFrom[F])
-        paidOrder = order match {
+        (paidOrder, sale) = order match {
           case drinkOrder: DrinkOrder =>
-            val priceDiff = appContext.priceOf(drinkOrder.drink) - payment
-            if (priceDiff <= 0.EUR) drinkOrder
-            else CoffeeMachineMessage(s"Not enough money, missing ${priceDiff.toString}")
-          case message: CoffeeMachineMessage => message
+            val price = appContext.priceOf(drinkOrder.drink)
+            val priceDiff = price - payment
+            if (priceDiff <= 0.EUR) (drinkOrder, Sale(drinkOrder.drink, price).some)
+            else
+              (CoffeeMachineMessage(s"Not enough money, missing ${priceDiff.toString}"), none[Sale])
+          case message: CoffeeMachineMessage => (message, none[Sale])
         }
-        _ <- (paidOrder match {
-          case drinkOrder: DrinkOrder => drinkOrder.some
-          case _ => none[DrinkOrder]
-        }).fold(Monad[F].unit)(drinkOrder =>
-          sales.save(Sale(drinkOrder.drink, appContext.priceOf(drinkOrder.drink)))
-        )
+        _ <- sale.fold(Monad[F].unit)(sales.save)
       } yield paidOrder
     }
 }

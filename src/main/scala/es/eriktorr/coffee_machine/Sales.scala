@@ -1,6 +1,6 @@
 package es.eriktorr.coffee_machine
 
-import cats.effect._
+import cats._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import squants.market.Money
@@ -16,9 +16,11 @@ trait Sales[F[_]] {
 object Sales {
   implicit def apply[F[_]](implicit ev: Sales[F]): Sales[F] = ev
 
-  def impl[F[_]: Sync](ref: Ref[F, List[Sale]], statementsPrinter: StatementsPrinter[F]): Sales[F] =
+  def impl[F[_]: MonadError[*[_], Throwable]](
+    ref: Ref[F, List[Sale]],
+    statementsPrinter: StatementsPrinter[F]
+  ): Sales[F] =
     new Sales[F] {
-
       override def save(sale: Sale): F[Unit] = ref.get.flatMap(current => ref.set(sale :: current))
 
       override def printReport: F[Unit] =
