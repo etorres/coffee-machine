@@ -1,5 +1,6 @@
 package es.eriktorr.coffee_machine
 
+import es.eriktorr.coffee_machine.Drink._
 import es.eriktorr.coffee_machine.shared.infrastructure.FakeAppContext
 import eu.timepit.refined.auto._
 import squants.market.MoneyConversions._

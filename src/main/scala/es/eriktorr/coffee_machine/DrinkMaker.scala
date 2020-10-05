@@ -2,9 +2,13 @@ package es.eriktorr.coffee_machine
 
 import cats._
 import cats.implicits._
+import es.eriktorr.coffee_machine.DrinkMakerError._
+import es.eriktorr.coffee_machine.DrinkMakerOrder._
 import eu.timepit.refined.api.Refined.unsafeApply
 import squants.market.Money
 import squants.market.MoneyConversions._
+
+import scala.util.Try
 
 trait DrinkMaker[F[_]] {
   def make(payment: Money, command: Command): F[DrinkMakerOrder]
@@ -21,22 +25,25 @@ object DrinkMaker {
     case _ => None
   }
 
-  private[this] def maybeTokens[F[_]: Monad](command: Command) = Monad[F].pure(
-    command.toText.value.split(":").toList match {
-      case x :: y :: _ :: Nil =>
-        drinkTokensFrom(x).fold(none[Tokens]) {
-          case (drink, extraHot) =>
-            val sugar = y.toInt
-            (drink, extraHot, sugar, if (sugar > 0) true else false, none[String]).some
-        }
-      case x :: Nil =>
-        drinkTokensFrom(x).fold(none[Tokens]) {
-          case (drink, extraHot) => (drink, extraHot, 0, false, none[String]).some
-        }
-      case "M" :: y :: Nil => ('M', false, 0, false, y.some).some
-      case _ => none[Tokens]
-    }
-  )
+  private[this] def maybeTokens[F[_]: Monad](command: Command) =
+    Monad[F].pure(
+      command.toText.value.split(":").toList match {
+        case x :: y :: _ :: Nil =>
+          drinkTokensFrom(x).fold(none[Tokens]) {
+            case (drink, extraHot) =>
+              Try(y.toInt).fold(
+                _ => none[Tokens],
+                sugar => (drink, extraHot, sugar, if (sugar > 0) true else false, none[String]).some
+              )
+          }
+        case x :: Nil =>
+          drinkTokensFrom(x).fold(none[Tokens]) {
+            case (drink, extraHot) => (drink, extraHot, 0, false, none[String]).some
+          }
+        case "M" :: y :: Nil => ('M', false, 0, false, y.some).some
+        case _ => none[Tokens]
+      }
+    )
 
   private[this] def orderFrom[F[_]: MonadError[*[_], Throwable]](tokens: Tokens) = tokens match {
     case ('M', _, _, _, messageContent) => messageOrder[F](messageContent)

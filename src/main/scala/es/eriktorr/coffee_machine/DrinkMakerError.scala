@@ -2,6 +2,8 @@ package es.eriktorr.coffee_machine
 
 import scala.util.control.NoStackTrace
 
-sealed trait DrinkMakerError extends NoStackTrace
+sealed trait DrinkMakerError extends NoStackTrace with Product with Serializable
 
-final case class InvalidCommand(errorMessage: String) extends DrinkMakerError
+object DrinkMakerError {
+  final case class InvalidCommand(errorMessage: String) extends DrinkMakerError
+}

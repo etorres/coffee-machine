@@ -2,6 +2,8 @@ package es.eriktorr.coffee_machine
 
 import cats.effect._
 import cats.effect.concurrent.Ref
+import es.eriktorr.coffee_machine.Drink._
+import es.eriktorr.coffee_machine.DrinkMakerOrder._
 import es.eriktorr.coffee_machine.shared.infrastructure.{
   FakeAppContext,
   FakeBeverageQuantityChecker,

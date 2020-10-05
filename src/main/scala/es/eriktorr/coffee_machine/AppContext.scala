@@ -1,5 +1,6 @@
 package es.eriktorr.coffee_machine
 
+import es.eriktorr.coffee_machine.Drink._
 import squants.market.Money
 import squants.market.MoneyConversions._
 
