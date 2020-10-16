@@ -15,6 +15,6 @@ object Drink {
     case 'C' => Coffee.some
     case 'O' => OrangeJuice.some
     case 'T' => Tea.some
-    case _ => None
+    case _ => none[Drink]
   }
 }
