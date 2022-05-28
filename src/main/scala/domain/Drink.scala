@@ -18,6 +18,8 @@ object Drink:
       case None => InvalidCustomerOrder(s"Unsupported drink code: $code").invalidNec
       case Some(drink) => drink.validNec
 
+  def allDrinks: List[Drink] = values.toList
+
   extension (drink: Drink) def canBeExtraHot: Boolean = drink != OrangeJuice
 
   given Show[Drink] = Show.show(_.code)

@@ -6,6 +6,7 @@ import domain.Command.{CustomerOrder, MessageDelivery}
 import domain.Drink.OrangeJuice
 
 import org.scalacheck.{Arbitrary, Gen}
+import squants.market.Money
 
 object CoffeeMachineGenerators:
   private[this] val customerOrderGen = for
@@ -25,3 +26,6 @@ object CoffeeMachineGenerators:
   yield text
 
   val commandGen: Gen[Command] = Gen.frequency(9 -> customerOrderGen, 1 -> messageDeliveryGen)
+
+  def paymentGen(price: Money): Gen[Money] =
+    Gen.choose(price.amount, BigDecimal(50)).map(Money(_, price.currency))
