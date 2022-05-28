@@ -9,8 +9,10 @@ import org.scalacheck.{Arbitrary, Gen}
 import squants.market.Money
 
 object CoffeeMachineGenerators:
+  val drinkGen: Gen[Drink] = Gen.oneOf(Drink.values.toList)
+
   val customerOrderGen: Gen[CustomerOrder] = for
-    drink <- Gen.oneOf(Drink.values.toList)
+    drink <- drinkGen
     extraHot <-
       if drink == OrangeJuice then Gen.const(ExtraHot(false))
       else Arbitrary.arbBool.arbitrary.map(ExtraHot.apply)

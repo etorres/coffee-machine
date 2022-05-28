@@ -47,6 +47,7 @@ object DrinkMakerSuite:
       missingDrinkNotificationsSent: MissingDrinkNotificationsSent,
       messagesShown: MessagesShown,
       drinksSold: DrinksSold,
+      statementsPrinted: StatementsPrinted,
   ):
     def setAvailableDrinks(newAvailableDrinks: List[Drink]): DrinkMakerState =
       copy(beverageAvailability = beverageAvailability.setAvailableDrinks(newAvailableDrinks))
@@ -58,6 +59,7 @@ object DrinkMakerSuite:
         MissingDrinkNotificationsSent.empty,
         MessagesShown.empty,
         DrinksSold.empty,
+        StatementsPrinted.empty,
       )
 
   private def makeDrinkWith(initialState: DrinkMakerState)(command: Command, payment: Money) =
@@ -68,12 +70,13 @@ object DrinkMakerSuite:
       )
       messagesShownRef <- Ref.of[IO, MessagesShown](initialState.messagesShown)
       drinksSoldRef <- Ref.of[IO, DrinksSold](initialState.drinksSold)
+      statementsPrintedRef <- Ref.of[IO, StatementsPrinted](initialState.statementsPrinted)
       drinkMaker = DrinkMaker.impl(
         FakeBeverageQuantityChecker(beverageAvailabilityRef),
         FakeEmailNotifier(missingDrinkNotificationsSentRef),
         FakeMessageDisplay(messagesShownRef),
         InMemoryPrices,
-        FakeSales(drinksSoldRef),
+        Sales.impl(FakeSalesRepository(drinksSoldRef), FakeStatementsPrinter(statementsPrintedRef)),
       )
       result <- drinkMaker.make(command, payment).attempt
       finalBeverageAvailability <- beverageAvailabilityRef.get
