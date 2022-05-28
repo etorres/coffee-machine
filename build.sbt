@@ -1,73 +1,63 @@
-import org.scalafmt.sbt.ScalafmtPlugin.autoImport.scalafmtOnCompile
-import sbt.Keys._
-import sbt._
-import wartremover.Wart
-import wartremover.WartRemover.autoImport._
+ThisBuild / organization := "es.eriktorr"
+ThisBuild / version := "1.0.0"
+ThisBuild / idePackagePrefix := Some("es.eriktorr.coffee_machine")
+Global / excludeLintKeys += idePackagePrefix
 
-organization := "es.eriktorr"
-name := "coffee-machine"
-version := (version in ThisBuild).value
+ThisBuild / scalaVersion := "3.1.2"
 
-scalaVersion := "2.13.3"
+Global / cancelable := true
+Global / fork := true
+Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val catsCoreVersion = "2.2.0"
-val catsEffectsVersion = "2.2.0"
-val newtypeVersion = "0.4.4"
-val refinedVersion = "0.9.17"
-val squantsVersion = "1.7.0"
-val weaverVersion = "0.5.0"
+Compile / compile / wartremoverErrors ++= Warts.unsafe.filter(_ != Wart.DefaultArguments)
+Test / compile / wartremoverErrors ++= Warts.unsafe.filter(_ != Wart.DefaultArguments)
 
-libraryDependencies ++= Seq(
-  compilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
-  compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1" cross CrossVersion.binary),
-  "org.typelevel" %% "cats-core" % catsCoreVersion,
-  "org.typelevel" %% "cats-effect" % catsEffectsVersion,
-  "io.estatico" %% "newtype" % newtypeVersion,
-  "eu.timepit" %% "refined-cats" % refinedVersion,
-  "eu.timepit" %% "refined-scalacheck" % refinedVersion % Test,
-  "org.typelevel" %% "squants" % squantsVersion,
-  "com.disneystreaming" %% "weaver-framework" % weaverVersion % Test,
-  "com.disneystreaming" %% "weaver-scalacheck" % weaverVersion % Test
-)
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 scalacOptions ++= Seq(
-  "-encoding",
-  "utf8",
   "-Xfatal-warnings",
-  "-Xlint",
-  "-Xlint:-byname-implicit",
-  "-Ymacro-annotations",
   "-deprecation",
+  "-feature",
   "-unchecked",
-  "-language:higherKinds",
-  "-language:implicitConversions",
-  "-feature"
+  "-Yexplicit-nulls", // https://docs.scala-lang.org/scala3/reference/other-new-features/explicit-nulls.html
+  "-Ysafe-init", // https://docs.scala-lang.org/scala3/reference/other-new-features/safe-initialization.html
 )
 
-javacOptions ++= Seq(
-  "-g:none",
-  "-source",
-  "11",
-  "-target",
-  "11",
-  "-encoding",
-  "UTF-8"
+lazy val root = (project in file("."))
+  .enablePlugins(JavaAppPackaging)
+  .settings(
+    name := "coffee-machine",
+    Universal / maintainer := "https://eriktorr.es",
+    Compile / mainClass := Some("es.eriktorr.coffee_machine.CoffeeMachineApp"),
+    libraryDependencies ++= Seq(
+      "com.github.scopt" %% "scopt" % "4.0.1",
+      "org.apache.logging.log4j" % "log4j-api" % "2.17.2" % Runtime,
+      "org.apache.logging.log4j" % "log4j-core" % "2.17.2" % Runtime,
+      "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2" % Runtime,
+      "org.scalameta" %% "munit" % "0.7.29" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+      "org.typelevel" %% "cats-core" % "2.7.0",
+      "org.typelevel" %% "cats-kernel" % "2.7.0",
+      "org.typelevel" %% "cats-effect" % "3.3.12",
+      "org.typelevel" %% "cats-effect-kernel" % "3.3.12",
+      "org.typelevel" %% "cats-effect-std" % "3.3.12",
+      "org.typelevel" %% "kittens" % "3.0.0-M4",
+      "org.typelevel" %% "log4cats-slf4j" % "2.3.1",
+      "org.typelevel" %% "log4cats-core_sjs1" % "2.3.1",
+      "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
+      "org.typelevel" %% "scalacheck-effect" % "1.0.4" % Test,
+      "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4" % Test,
+      "org.typelevel" %% "squants" % "1.8.3",
+    ),
+    onLoadMessage := {
+      s"""Custom tasks:
+         |check - run all project checks
+         |""".stripMargin
+    },
+  )
+
+addCommandAlias(
+  "check",
+  "; undeclaredCompileDependenciesTest; unusedCompileDependenciesTest; scalafixAll; scalafmtSbtCheck; scalafmtCheckAll",
 )
-
-scalafmtOnCompile := true
-
-val warts: Seq[Wart] = Warts.allBut(
-  Wart.Any,
-  Wart.Nothing,
-  Wart.Equals,
-  Wart.DefaultArguments,
-  Wart.Overloading,
-  Wart.ToString,
-  Wart.ImplicitParameter,
-  Wart.ImplicitConversion // @newtype
-)
-
-wartremoverErrors in (Compile, compile) ++= warts
-wartremoverErrors in (Test, compile) ++= warts
-
-testFrameworks += new TestFramework("weaver.framework.TestFramework")
