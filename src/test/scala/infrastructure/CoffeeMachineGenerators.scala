@@ -9,7 +9,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import squants.market.Money
 
 object CoffeeMachineGenerators:
-  private[this] val customerOrderGen = for
+  val customerOrderGen: Gen[CustomerOrder] = for
     drink <- Gen.oneOf(Drink.values.toList)
     extraHot <-
       if drink == OrangeJuice then Gen.const(ExtraHot(false))
@@ -29,3 +29,6 @@ object CoffeeMachineGenerators:
 
   def paymentGen(price: Money): Gen[Money] =
     Gen.choose(price.amount, BigDecimal(50)).map(Money(_, price.currency))
+
+  def underpaymentGen(price: Money): Gen[Money] =
+    Gen.choose(BigDecimal(0), price.amount - 0.01d).map(Money(_, price.currency))

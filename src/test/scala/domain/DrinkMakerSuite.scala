@@ -1,12 +1,15 @@
 package es.eriktorr.coffee_machine
 package domain
 
-import domain.Command.CustomerOrder
-import domain.Command.MessageDelivery
-import domain.DrinkMakerSuite.{makeDrinkWith, testCaseGen, DrinkMakerState}
+import domain.Command.{CustomerOrder, MessageDelivery}
+import domain.DrinkMakerSuite.*
+import infrastructure.CoffeeMachineGenerators.{
+  commandGen,
+  customerOrderGen,
+  paymentGen,
+  underpaymentGen,
+}
 import infrastructure.*
-import infrastructure.CoffeeMachineGenerators.{commandGen, paymentGen}
-import infrastructure.InMemoryPrices
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
@@ -19,14 +22,24 @@ import squants.market.MoneyConversions.*
 final class DrinkMakerSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
 
   test("it should get orders from customers") {
-    forAllF(testCaseGen)(testCase =>
-      makeDrinkWith(testCase.initialState)(testCase.command, testCase.payment).map {
-        case (result, finalState) =>
-          assert(result.isRight)
-          assertEquals(finalState, testCase.expectedFinalState)
-      },
-    )
+    runWith(correctTestCaseGen)
   }
+
+  test("it should show a message when not enough money is given") {
+    runWith(underpaymentTestCaseGen)
+  }
+
+  test(
+    "it should send a notification and show a message when a drink cannot be delivered because of a shortage",
+  )(runWith(shortageTestCaseGen))
+
+  private[this] def runWith(testCaseGen: Gen[TestCase]) = forAllF(testCaseGen)(testCase =>
+    makeDrinkWith(testCase.initialState)(testCase.command, testCase.payment).map {
+      case (result, finalState) =>
+        assert(result.isRight)
+        assertEquals(finalState, testCase.expectedFinalState)
+    },
+  )
 
 object DrinkMakerSuite:
   final private case class DrinkMakerState(
@@ -82,7 +95,7 @@ object DrinkMakerSuite:
       expectedFinalState: DrinkMakerState,
   )
 
-  private def testCaseGen = for
+  private def correctTestCaseGen = for
     command <- commandGen
     (payment, messages, sales) <- command match
       case CustomerOrder(drink, _, _, _) =>
@@ -95,3 +108,26 @@ object DrinkMakerSuite:
       messagesShown = initialState.messagesShown.setMessages(messages),
     )
   yield TestCase(initialState, command, payment, expectedFinalState)
+
+  private def underpaymentTestCaseGen = for
+    customerOrder <- customerOrderGen
+    price = InMemoryPrices.unsafeHowMuchForA(customerOrder.drink)
+    payment <- underpaymentGen(price)
+    initialState = DrinkMakerState.empty.setAvailableDrinks(Drink.allDrinks)
+    expectedFinalState = initialState.copy(messagesShown =
+      initialState.messagesShown.setMessages(List(Message.underpayment(price - payment))),
+    )
+  yield TestCase(initialState, customerOrder, payment, expectedFinalState)
+
+  private def shortageTestCaseGen = for
+    customerOrder <- customerOrderGen
+    price = InMemoryPrices.unsafeHowMuchForA(customerOrder.drink)
+    payment <- paymentGen(price)
+    initialState = DrinkMakerState.empty
+    expectedFinalState = initialState.copy(
+      messagesShown =
+        initialState.messagesShown.setMessages(List(Message.shortage(customerOrder.drink))),
+      missingDrinkNotificationsSent =
+        initialState.missingDrinkNotificationsSent.setMissingDrinks(List(customerOrder.drink)),
+    )
+  yield TestCase(initialState, customerOrder, payment, expectedFinalState)
