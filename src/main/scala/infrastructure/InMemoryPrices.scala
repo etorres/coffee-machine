@@ -16,6 +16,7 @@ object InMemoryPrices extends Prices:
     Tea -> 0.4.EUR,
   )
 
+  @SuppressWarnings(Array("org.wartremover.warts.IterableOps"))
   def unsafeHowMuchForA(drink: Drink): Money = fixedPrices.getOrElse(drink, fixedPrices.values.max)
 
   override def howMuchForA(drink: Drink): IO[Money] = IO.pure(unsafeHowMuchForA(drink))
